@@ -1,0 +1,2 @@
+* virtualenv, python 3.5+
+* pip install scikit-learn[alldeps] pandas matplotlib
