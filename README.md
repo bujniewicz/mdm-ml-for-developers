@@ -1,5 +1,4 @@
 # Machine Learning in Python for developers
----
 ### Codebase for the talk given at Mindspace Developers Meetup on 2019-04-25.
 
 The presentation slides are available here: https://bujniewicz.github.io/mdm-ml-for-developers/
@@ -16,9 +15,9 @@ The repository consists of:
   * knn - this is a knn model of altitude regression, using
     https://archive.ics.uci.edu/ml/datasets/3D+Road+Network+%28North+Jutland%2C+Denmark%29
 
+---
 
 ## Local setup
-===
 
 I was using Python 3.7.1 for running the code contained in this repository. However, I've verified it works
 in 3.6.7 as well. It will not work before CPython 3.6 due to reliance on class parameter declaration order.
@@ -31,6 +30,5 @@ To start the jupyter notebook, run `jupyter notebook`.
 To build the presentation, run `make slides`.
 
 ## Questions and comments
-===
 
 Feel free to contact me on https://twitter.com/bujniewicz.
