@@ -1,3 +1,10 @@
+"""
+Naive Bayes Classifier using UCI Adult dataset.
+
+This implementation doesn't do any actual data pre-processing, it just assigns
+random values to string-based features.
+"""
+
 from collections import namedtuple
 import random
 
@@ -6,11 +13,20 @@ from sklearn.naive_bayes import GaussianNB
 import numpy as np
 import pandas as pd
 
-PRINT = False
-
 
 class SalaryModel():
+    """
+    Wrapper around Gaussian Naive Bayes classifier providing convenience
+    methods for working with Adult dataset-based dataframes.
+    """
+
     class Columns:
+        """
+        List of columns and their identifiers in order of appearance in adult dataframe.
+
+        We don't want to use string literals around. It's very error-prone.
+        """
+
         AGE = 'age'
         WORKCLASS = 'workclass'
         FNLWGT = 'fnlwgt'
@@ -27,30 +43,61 @@ class SalaryModel():
         NATIVE_COUNTRY = 'native_country'
         SALARY = 'salary'
 
+    # Use all columns in order, skipping the salary which is the result.
     FEATURE_NAMES = [value for key, value in Columns.__dict__.items() if key.isupper()][:-1]
 
     def __init__(self):
+        """
+        Initialize variables used later on.
+        """
+
         self.classifier = None
         self.features = None
         self.values = None
 
     def set_training_dataframe(self, dataframe):
+        """
+        Set data points (features) and results (values) according to input dataframe.
+
+        Reset the classifier to ensure it will be retrained before next prediction.
+        """
+
         self.features = dataframe[self.FEATURE_NAMES]
         self.values = dataframe[[self.Columns.SALARY]]
         self.classifier = None
 
     def train(self):
+        """
+        Train the classifier using current state of feratures and values.
+        """
+
         if self.classifier is None:
             self.classifier = GaussianNB()
             self.classifier.fit(self.features, self.values.values.ravel())
 
     def predict(self, features):
+        """
+        Train the classifier if needed and predict the result for given array of features.
+        """
+
         if self.classifier is None:
             self.train()
         return self.classifier.predict(features)
 
 
-class SalaryModelMapping():
+class SalaryModelDatasetProcessor():
+    """
+    Provides method (prep_dataframe) reading from a file in accordance to adult data set
+    and returning a dataframe ready to use in a model.
+
+    Additionally, contains mappings describing the process of conversion from string literal
+    data points to integers.
+
+    The integer values are assigned in order of appearance in the data set.
+    """
+
+    COLUMNS = SalaryModel.FEATURE_NAMES + [SalaryModel.Columns.SALARY]
+
     SALARY_MAP = {' <=50K': 0, ' >50K': 1, ' <=50K.': 0, ' >50K.': 1}
     WORKCLASS_MAP = {' State-gov': 0, ' Self-emp-not-inc': 1, ' Private': 2, ' Federal-gov': 3,
                      ' Local-gov': 4, ' Self-emp-inc': 5, ' Without-pay': 6}
@@ -79,32 +126,67 @@ class SalaryModelMapping():
                            ' Greece', ' Nicaragua', ' Vietnam', ' Hong', ' Ireland',
                            ' Hungary', ' Holand-Netherlands'])}
 
+    @classmethod
+    def prep_dataframe(cls, dataset_file):
+        """
+        Prepare the dataframe suitable for SalaryModel from input dataset file.
+
+        Drops rows with unknown feature values and maps string literals to ints.
+        """
+
+        dataframe = pd.read_csv(dataset_file, header=None, names=cls.COLUMNS)
+        
+        for column in cls.COLUMNS:
+            dataframe[column] = dataframe[column].replace(' ?', np.nan)
+        dataframe = dataframe.dropna()
+
+        for dimension, feature in SalaryModel.Columns.__dict__.items():
+            value_map = getattr(cls, '{}_MAP'.format(dimension), None)
+            if value_map:
+                dataframe[feature] = dataframe[feature].map(value_map).astype(int)
+        
+        return dataframe
+
 
 class SalaryModelValidator():
-    COLUMNS = SalaryModel.FEATURE_NAMES + [SalaryModel.Columns.SALARY]
+    """
+    Provide validataion capabilities for SalaryModel.
+
+    See run for entrypoint.
+    """
+
+    dataset_processor = SalaryModelDatasetProcessor
 
     def __init__(self):
+        """
+        Initialize variables used later on.
+        """
+
         self.model = SalaryModel()
         self.test_dataframe = None
         self.training_dataframe = None
 
     @classmethod
     def prep_dataframe(cls, dataset_file):
-        dataframe = pd.read_csv(dataset_file, header=None, names=cls.COLUMNS)
-        for column in cls.COLUMNS:
-            dataframe[column] = dataframe[column].replace(' ?', np.nan)
-        dataframe = dataframe.dropna()
-        for dimension, feature in SalaryModel.Columns.__dict__.items():
-            value_map = getattr(SalaryModelMapping, '{}_MAP'.format(dimension), None)
-            if value_map:
-                dataframe[feature] = dataframe[feature].map(value_map).astype(int)
-        return dataframe
+        """
+        Proxy method for dataset_processor's prep_dataframe.
+        """
 
-    def load_data(self, training_dataset_file, test_dataset_file):    
+        return cls.dataset_processor.prep_dataframe(dataset_file)
+
+    def load_data(self, training_dataset_file, test_dataset_file):
+        """
+        Set validator instance's dataframes to result of processing input files.
+        """
+
         self.training_dataframe = self.prep_dataframe(training_dataset_file)
         self.test_dataframe = self.prep_dataframe(test_dataset_file)
 
     def validate(self):
+        """
+        Validate test dataset against model trained with training dataset.
+        """
+
         self.model.set_training_dataframe(self.training_dataframe)
         self.model.train()
 
@@ -115,13 +197,15 @@ class SalaryModelValidator():
 
     @classmethod
     def run(cls, training_dataset_file, test_dataset_file):
+        """
+        Load data and run validation using input datasets.
+        
+        Print accuracy.
+        """
         validator = cls()
         validator.load_data(training_dataset_file, test_dataset_file)
-        print('Accuracy: {}'.format(validator.validate()))
-
-def run(training_dataset_file, test_dataset_file):
-    SalaryModelValidator.run(training_dataset_file, test_dataset_file)
+        print('Accuracy: {:2.2f}%'.format(validator.validate() * 100))
 
 
 if __name__ == '__main__':
-    run('adult.data', 'adult.test')
+    SalaryModelValidator.run('adult.data', 'adult.test')
